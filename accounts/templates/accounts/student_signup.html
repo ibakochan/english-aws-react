@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生徒登録</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function disableButton() {
+            var submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            setTimeout(function() {
+                submitBtn.disabled = false;
+            }, 5000);
+        }
+    </script>
+</head>
+<body>
+    {% if error_message %}
+        <div class="alert alert-danger">{{ error_message }}</div>
+    {% endif %}
+    <div class="container mt-5">
+        <h2>生徒登録！</h2>
+        <h4>存在してるあだ名は選べない。</h4>
+        <h4>あだ名は最大長さ１０文字。</h4>
+        <h4>あだ名はスペース書けない。</h4>
+        <h4>覚えやすいあだ名とパスワードにしよう。</h4>
+        <h4>出席番号間違わないで。</h4>
+        <form method="post" onsubmit="disableButton()">
+            {% csrf_token %}
+            <div class="form-group">
+                {{ form.username.label_tag }}
+                {{ form.username }}
+            </div>
+            <div class="form-group">
+                {{ form.student_number.label_tag }}
+                {{ form.student_number }}
+            </div>
+            <button type="submit" id="submit-btn" class="btn btn-primary">登録</button>
+        </form>
+    </div>
+</body>
+</html>

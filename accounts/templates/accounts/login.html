@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン</title>
+    {% load static %}
+    <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-iYQeCzEYFbKjA/T2uDLTpkwGzCiq6soy8tYaI1GyVh/UjpbCx/TYkiZhlZB6+fzT" crossorigin="anonymous">
+    <!-- JavaScript Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-u1OknCvxWvY5kfmNBILK2hRnQC3Pr17a+RTT6rIHI7NnikvbZlHgTPOOmMi466C8" crossorigin="anonymous" defer></script>
+
+<link href="{% static 'accounts/log_sign.css' %}" rel="stylesheet">
+
+</head>
+<body>
+
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
+<br>
+<br>
+<form method="post">
+  {% csrf_token %}
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card-group mb-0">
+          <div class="card p-4">
+            <div class="card-body">
+              <h1>ログイン</h1>
+              {% if form.non_field_errors %}
+                  <div class="alert alert-danger">
+                      {{ form.non_field_errors }}
+                  </div>
+              {% endif %}
+              <div class="input-group mb-3">
+                <span class="input-group-addon"><i class="fa fa-user"></i>ユーザネーム：</span>
+                {{ form.username }}
+              </div>
+              <div class="row">
+                <div class="col-6">
+                  <button type="submit" class="btn btn-primary" style="width: 200px; padding: 4px; border: 5px solid black; box-sizing: border-box;">ログイン</button>
+                </div>
+              </div>
+              　<h4>ユーザーネーム忘れたら<span style="font-size: 2rem; color: red; font-weight: bold;">&#x2193;</span></h4>
+                <p>ユーザーネーム入力のところ押したら前ログインした時のユーザーネームはでてくるかもしれない。</p>
+                <p>出てこなかったら先生に聞いたらユーザーネームを生徒管理ボタン押して出席番号で調べれる。</p>
+            </div>
+          </div>
+
+          <!-- New card for signup buttons -->
+          <div class="card p-4" style="border: 1px solid black;">
+            <div class="card-body text-center">
+            　<h3>アカウント登録：</h3>
+              <a href="{% url 'main:student_signup' %}">
+                <button type="button" class="btn btn-success mb-3" style="width: 200px; border: 5px solid black;">
+                  生徒登録！
+                </button>
+              </a>
+              <a href="{% url 'main:teacher_signup' %}">
+                <button type="button" class="btn btn-success mb-3" style="width: 200px; border: 5px solid black;">
+                  先生登録！
+                </button>
+              </a>
+            </div>
+          </div>
+          <!-- End of new card -->
+
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+</body>
+</html>

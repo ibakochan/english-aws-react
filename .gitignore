@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.DS_Store
+venv/        # Or the name of your virtual environment directory
+db.sqlite3   # Or your database file
+static/      # Unless you intentionally commit static files
+.env         # Environment variables
+*.log        # Log files
+*.swp        # Swap files (from editors like Vim)
+.vscode/     # VS Code settings (optional)
