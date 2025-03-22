@@ -121,7 +121,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'dbeibaru',
         'USER': 'eibaru',
-        'PASSWORD': 'eibaru12345',
+        'PASSWORD': '*****',
         'HOST': 'ls-2e19b2dae7ca9c7101c5c1a11b376cbe2d76e307.cxo6qo6s0o1y.ap-northeast-1.rds.amazonaws.com',
         'PORT': '3306',
         'OPTIONS': {  # OPTIONS should be inside the 'default' dictionary
