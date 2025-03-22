@@ -25,8 +25,7 @@
     {% endif %}
     <div class="container mt-5">
         <h2>先生登録！</h2>
-        <h4>学校名と学校パスワードなければ先生アカウントは作れない。</h4>
-        <h4>あだ名はスペース書けない。</h4>
+        <h4>ユーザーネームは最大長さ１０文字。</h4>
         <form method="post" onsubmit="disableButton()">
             {% csrf_token %}
             <div class="form-group">
@@ -34,12 +33,12 @@
                 {{ form.username }}
             </div>
             <div class="form-group">
-                <label for="school_name">学校名:</label>
-                <input type="text" id="school_name" name="school_name" class="form-control">
+                {{ form.last_name.label_tag }}
+                {{ form.last_name }}
             </div>
             <div class="form-group">
-                <label for="school_password">学校のパスワード:</label>
-                <input type="password" id="school_password" name="school_password" class="form-control">
+                <label for="password">パスワード:</label>
+                <input type="password" id="password" name="password" class="form-control">
             </div>
             <button type="submit" id="submit-btn" class="btn btn-primary">Register</button>
         </form>

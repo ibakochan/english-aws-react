@@ -2,26 +2,32 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useCookies } from 'react-cookie';
 import { Button, Form, Modal } from 'react-bootstrap';
+import { useUser } from "../context/UserContext";
+import { FaPlay, FaArrowLeft } from 'react-icons/fa';
+
 
 const UserTestRecords = () => {
-  const [classrooms, setClassrooms] = useState([]);
+  const { currentUser, activeClassroomId, activeClassroomName, setActiveClassroomId, userClassrooms, setActiveClassroomName, activity, setActivity, isEnglish, setIsEnglish } = useUser();
+  const [activatedClassroomId, setActivatedClassroomId] = useState(null);
+  const [activeUserManagement, setActiveUserManagement] = useState(null);
+  const [activeRequests, setActiveRequests] = useState(false);
+  const [classroomRequests, setClassroomRequests] = useState([]); 
   const [tests, setTests] = useState([]);
   const [users, setUsers] = useState([]);
-  const [sessions, setSessions] = useState([]);
   const [cookies, setCookie, removeCookie] = useCookies(['csrftoken']);
   const [maxScores, setMaxScores] = useState([]);
-  const [sessionDetails, setSessionDetails] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState(null);
-  const [activeClassroomId, setActiveClassroomId] = useState(null);
   const [activeTestId, setActiveTestId] = useState(null);
   const [activeUserDeleteId, setActiveUserDeleteId] = useState(null);
   const [activeUserId, setActiveUserId] = useState(null);
-  const [activeSessionId, setActiveSessionId] = useState(null);
   const [userDetailButtonActive, setUserDetailButtonActive] = useState(false);
-  const [formData, setFormData] = useState({});
   const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [acceptMessage, setAcceptMessage] = useState(null);
+
+
+
 
   const openModal = (userId) => {
     setActiveUserDeleteId(userId);
@@ -35,34 +41,47 @@ const UserTestRecords = () => {
 
   const handleBackClick = () => {
     closeReturnModal();
-    handleAccountDelete(activeUserDeleteId);
+    handleAccountRemove(activeUserDeleteId, activeClassroomId);
   };
 
-  useEffect(() => {
-    axios.get('/api/classrooms/my-classroom-teacher/')
-      .then(response => {
-        setClassrooms(response.data);
-        const initialFormData = {};
-        response.data.forEach(classroom => {
-          initialFormData[classroom.id] = {
-            name: '',
-            test_picture: null,
-          };
-        });
-        setFormData(initialFormData);
-      })
-      .catch(error => {
-        console.error('Error fetching classrooms:', error);
+
+  const fetchClassroomRequests = async () => {
+        try {
+            const response = await axios.get(`/api/classroomrequest/by-classroom/${activeClassroomId}/`);
+            setClassroomRequests(response.data);
+        } catch (error) {
+            console.error('Error fetching classroom requests:', error);
+        }
+  };
+
+  const toggleAccept = async (requestId, unchangeable) => {
+    try {
+      const csrfToken = cookies.csrftoken;
+      const response = await axios.post(`/classroom_accept/${requestId}/`, { unchangeable }, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+          'X-CSRFToken': csrfToken
+        }
       });
-  }, []);
+      const { status, success } = response.data;
+      setAcceptMessage(status)
+      setClassroomRequests(prevRequests =>
+          prevRequests.map(request =>
+              request.id === requestId ? { ...request, is_accepted: !request.is_accepted } : request
+          )
+      );
 
+    } catch (error) {
+      console.error('Error deleting submissions:', error);
+      setError('失敗しました');
+    }
+  };
 
-  const handleAccountDelete = async (userId) => {
+  const handleAccountRemove = async (userId, classroomId) => {
     try {
       const csrfToken = cookies.csrftoken;
       const response = await axios.post(
-        `/remove/account/${userId}/`,
-        {},
+        `/remove/account/${userId}/`, { classroomId },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('access_token')}`,
@@ -81,20 +100,7 @@ const UserTestRecords = () => {
     }
   };
 
-  const fetchTests = async (classroomId) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const testsResponse = await axios.get(`/api/name-id-tests/`);
-      console.log('Fetched tests:', testsResponse.data);
-      setTests(testsResponse.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching tests:', error);
-      setError('Failed to fetch tests.');
-      setLoading(false);
-    }
-  };
+
 
   const fetchTestsByCategory = async (category) => {
     try {
@@ -156,7 +162,11 @@ const UserTestRecords = () => {
     if (userDetailButtonActive) {
       setUserDetailButtonActive(null);
       setUsers([]);
+      setActiveUserManagement()
+      setActivity("")
     } else {
+      setActiveUserManagement(classroomId);
+      setActivity("user_records")
       setUserDetailButtonActive(classroomId);
       await fetchUsers(classroomId);
     }
@@ -175,58 +185,39 @@ const UserTestRecords = () => {
     }
   };
 
-  const fetchSessions = async (testId, userId) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const sessionsResponse = await axios.get(`/api/only-sessions/by-test-and-user/${testId}/${userId}/`);
-      console.log('Fetched sessions:', sessionsResponse.data);
-      setSessions(sessionsResponse.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching sessions:', error);
-      setError('Failed to fetch sessions.');
-      setLoading(false);
-    }
-  };
-
-  const fetchSessionDetails = async (sessionId) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await axios.get(`/api/sessions/${sessionId}/`);
-      console.log('Fetched session details:', response.data);
-      setSessionDetails(prevDetails => ({
-        ...prevDetails,
-        [sessionId]: response.data,
-      }));
-      setLoading(false);
-    } catch (error) {
-      console.error(`Error fetching session details for ID ${sessionId}:`, error);
-      setError(`Failed to fetch session details for ID ${sessionId}.`);
-      setLoading(false);
-    }
-  };
 
   const toggleClassroomDetails = async (classroomId) => {
-    if (activeClassroomId === classroomId) {
-      setActiveClassroomId(null);
+    if (activatedClassroomId === classroomId) {
+      setActivity("")
+      setActivatedClassroomId(null);
       setTests([]);
       setUsers([]);
     } else {
-      setActiveClassroomId(classroomId);
+      setActivity("user_records")
+      setActivatedClassroomId(classroomId);
       await fetchUsers(classroomId);
+    }
+  };
+
+  const toggleRequests = async () => {
+    if (activeRequests) {
+      setActiveRequests(false)
+      setAcceptMessage(null)
+      setActivity("")
+      setClassroomRequests([])
+    } else {
+      setActivity("user_records")
+      setActiveRequests(true)
+      await fetchClassroomRequests();
     }
   };
 
   const toggleTestDetails = async (testId) => {
     if (activeTestId === testId) {
       setActiveTestId(null);
-      setSessions([]);
       setActiveUserId(null);
     } else {
       setActiveTestId(testId);
-      setSessions([]);
       setActiveUserId(null);
       try {
         const scores = await fetchMaxScores(testId);
@@ -245,30 +236,11 @@ const UserTestRecords = () => {
   const toggleUserDetails = async (userId) => {
     if (activeUserId === userId) {
       setActiveUserId(null);
-      setSessions([]);
     } else {
       setActiveUserId(userId);
-      if (activeTestId) {
-        await fetchSessions(activeTestId, userId);
-      }
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-
-
-  const toggleSessionDetails = async (sessionId) => {
-    if (activeSessionId === sessionId) {
-      setActiveSessionId(null);
-    } else {
-      setActiveSessionId(sessionId);
-      await fetchSessionDetails(sessionId);
-    }
-  };
 
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
@@ -291,31 +263,87 @@ const UserTestRecords = () => {
 
 
   return (
-    <div>
+    <span>
       {loading && <p>Loading...</p>}
       {error && <p>{error}</p>}
-          <ul>
-            {classrooms.map(classroom => (
-              <div key={classroom.id}>
-                <button
-                  style={{ height: '120px', width: '200px', padding: '10px', margin: '5px', border: '5px solid black' }}
-                  className={`btn btn-dark mb-3 toggle-classroom-btn${activeClassroomId === classroom.id ? ' active' : ''}`}
-                  onClick={() => toggleClassroomDetails(classroom.id)}
+          <span>
+            <span>
+                <span style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                {activity === "" &&
+                <>
+                <label className="me-2">教室：</label> 
+                <select
+                  style={{ width: "150px", height: "30px" }}
+                  className="form-select"
+                  value={activeClassroomName}
+                  onChange={(e) => {
+                    const selectedClassroom = userClassrooms.find(c => c.name === e.target.value);
+                    if (selectedClassroom) {
+                      setActiveClassroomId(selectedClassroom.id);
+                      setActiveClassroomName(selectedClassroom.name);
+                    }
+                  }}
                 >
-                  <h5>{classroom.name}の</h5>
-                  <h5>テスト記録</h5>
-                </button>
-                <p>
+                  {userClassrooms.map(classroom => (
+                    <option key={classroom.id} value={classroom.name}>
+                      {classroom.name}
+                    </option>
+                  ))}
+                </select>
+                </>
+                }
+                {!activatedClassroomId && !activeUserManagement &&
                 <button
-                  style={{ height: '120px', width: '200px', padding: '10px', margin: '5px', border: '5px solid black' }}
-                  className={`btn btn-primary mb-3`}
-                  onClick={() => toggleUserDetailsForUserDetailButton(classroom.id)}
+                　style={{ position: 'relative',　height: '50px', width: !activeRequests ? '220px' : '290px', padding: '10px', border: '5px solid black' }}
+                  className={`btn btn-warning ${activeRequests ? 'mb-5 mt-5' : 'mb-3'}`}
+                  onClick={() => toggleRequests()}
                 >
-                  {userDetailButtonActive ? '生徒管理閉じる' : '生徒管理開く'}
+                  <span 
+                    className="text-center text-white text_shadow">{activeRequests && <><FaArrowLeft style={{ marginRight: '10px' }} /></>}{!activeRequests ? (isEnglish ? 'Teacher requests' : '先生リクエスト') : (isEnglish ? 'Go back' : '戻る！')}
+                  </span>
                 </button>
-                </p>
+                }
+                {!activeUserManagement && !activeRequests && !activeCategory &&
+                <button
+                  style={{ height:'50px', width: !activatedClassroomId ? '220px' : '290px', padding: '10px', border: '5px solid black' }}
+                  className={`btn btn-dark ${activatedClassroomId ? 'mb-5 mt-5' : 'mb-3'} toggle-classroom-btn${activatedClassroomId === activeClassroomId ? ' active' : ''}`}
+                  onClick={() => toggleClassroomDetails(activeClassroomId)}
+                >
+                  <span className="text-center text-white text_shadow">
+                    {activatedClassroomId && <><FaArrowLeft style={{ marginRight: '10px' }} /></>}{!activatedClassroomId ? (isEnglish ? 'test records' : 'テスト記録') : (isEnglish ? 'Go back' : '戻る！')}
+                  </span>
+                </button>
+                }
+                {!activatedClassroomId && !activeRequests &&
+                <button
+                  style={{ height: '50px', width: !activeUserManagement ? '220px' : '290px', padding: '10px', border: '5px solid black' }}
+                  className={`btn btn-primary ${activeUserManagement ? 'mb-5 mt-5' : 'mb-3'}`}
+                  onClick={() => toggleUserDetailsForUserDetailButton(activeClassroomId)}
+                >
+                  <span className="text-center text-white text_shadow">
+                    {activeUserManagement && <><FaArrowLeft style={{ marginRight: '10px' }} /></>}{!activeUserManagement ? (isEnglish ? 'student management' : '生徒管理') : (isEnglish ? 'Go back' : '戻る！')}
+                    </span>
+                </button>
+                }
+                </span>
+                {currentUser?.teacher.classrooms.length > 0 &&
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                {acceptMessage && <h5 className="text-center mb-2">{acceptMessage}</h5>}
+                {classroomRequests.map((request) => (
+                    <button
+                      className="btn btn-dark mb-3 category_button"
+                      onClick={() => toggleAccept(request.id, false)}
+                      key={request.id}>
+                        {request.teacher.user.username}
+                        {request.is_accepted ? (
+                            <span className="text-success" style={{ fontSize: '50px' }}>&#x2713;</span>
+                        ) : (
+                            <span className="text-danger" style={{ fontSize: '50px' }}>&#x2717;</span>
+                        )}
+                    </button>
+                ))}
                 {userDetailButtonActive && (
-                  <div className="user-list">
+                  <>
                     {users.map(user => (
                       <span key={user.id}>
                       <button
@@ -325,67 +353,59 @@ const UserTestRecords = () => {
                         <h5>{user.username} - {user.student.student_number}</h5>
                         <h5>最大記録トータル＝{user.total_max_scores}</h5>
                         <h5>英検トータル＝{user.total_eiken_score}</h5>
-                      <button className={`btn btn-danger`} onClick={() => openModal(user.id)}>
-                        Delete Account
+                      <button className={`btn btn-danger submit_buttons`} style={{ border: '5px solid black' }} onClick={() => openModal(user.id)}>
+                        教室から追い出す
                       </button>
                       </button>
                       </span>
                     ))}
-                  </div>
+                  </>
                 )}
-                {activeClassroomId === classroom.id && (
+                {activatedClassroomId === activeClassroomId && (
                   <div className="classroom-details">
                   <button
                     onClick={() => toggleCategories('japanese')}
-                    className={`btn btn-success mb-3 ${activeCategory === null ? 'active' : 'd-none'}`}
-                    style={{ height: '100px', width: '220px', padding: '10px', border: '5px solid black' }}
+                    className={`btn btn-success mb-3 category_button ${activeCategory === null ? 'active' : 'd-none'}`}
                   >日本語</button>
                   <button
                     onClick={() => toggleCategories('english_5')}
-                    className={`btn btn-success mb-3 ${activeCategory === null ? 'active' : 'd-none'}`}
-                    style={{ height: '100px', width: '220px', padding: '10px', border: '5px solid black' }}
+                    className={`btn btn-success mb-3 category_button ${activeCategory === null ? 'active' : 'd-none'}`}
                   >５年英語</button>
                   <button
                     onClick={() => toggleCategories('english_6')}
-                    className={`btn btn-success mb-3 ${activeCategory === null ? 'active' : 'd-none'}`}
-                    style={{ height: '100px', width: '220px', padding: '10px', border: '5px solid black' }}
+                    className={`btn btn-success mb-3 category_button ${activeCategory === null ? 'active' : 'd-none'}`}
                   >６年英語</button>
                   <button
                     onClick={() => toggleCategories('phonics')}
-                    className={`btn btn-success mb-3 ${activeCategory === null ? 'active' : 'd-none'}`}
-                    style={{ height: '100px', width: '220px', padding: '10px', border: '5px solid black' }}
+                    className={`btn btn-success mb-3 category_button ${activeCategory === null ? 'active' : 'd-none'}`}
                   >アルファベットとフォニックス</button>
                   <button
                     onClick={() => toggleCategories('numbers')}
-                    className={`btn btn-success mb-3 ${activeCategory === null ? 'active' : 'd-none'}`}
-                    style={{ height: '100px', width: '220px', padding: '10px', border: '5px solid black' }}
+                    className={`btn btn-success mb-3 category_button ${activeCategory === null ? 'active' : 'd-none'}`}
                   >数字</button>
-                　<p>
-                　<button
-      　            className={`btn btn-success mb-3 toggle-test-btn ${activeCategory !== null && activeTestId === null ? 'active' : 'd-none'}`}
-              　    style={{ height: '50px', width: '290px', padding: '10px', border: '5px solid black', position: 'relative', marginBottom: '10px' }}
-      　            onClick={() => toggleCategories(activeCategory)}
-              　   >
-          　        <span
-                  　  className="text-center text-white"
-      　              style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '5px', borderRadius: '5px', marginBottom: '10px' }}
-              　    >
-                  　{activeCategory}から戻る
-      　            </span>
-              　  </button>
+                  <p>
+                  <button
+                    style={{ border: '5px solid black' }}
+                    className={`btn btn-success mb-3 return_buttons ${activeCategory !== null && activeTestId === null ? 'active' : 'd-none'}`}
+                    onClick={() => toggleCategories(activeCategory)}
+                  >
+                    <span
+                      className="text-center text-white text_shadow"
+                    >
+                    {activeCategory}から戻る
+                    </span>
+                  </button>
                  </p>
                     {Object.values(tests).flat().sort((a, b) => a.lesson_number - b.lesson_number).map(test => (
                       <span key={test.id}>
                         {activeTestId === null || activeTestId === test.id ? (
                         <span style={{ marginRight: '10px' }}>
                         <button
-                          className={`btn btn-warning mb-3 toggle-test-btn ${activeTestId === test.id || activeTestId === null && activeCategory === test.category ? 'active' : 'd-none'}`}
-                          style={{ height: '220px', width: '220px', padding: '10px', border: '5px solid black', position: 'relative' }}
+                          className={`btn btn-warning mb-3 test_buttons ${activeTestId === test.id || activeTestId === null && activeCategory === test.category ? 'active' : 'd-none'}`}
                           onClick={() => toggleTestDetails(test.id)}
                         >
                           <span
-                            className="text-center text-white"
-                            style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '5px', borderRadius: '5px', marginBottom: '10px' }}
+                            className="text-center text-white text_shadow"
                           >
                             {test.name}
                           </span>
@@ -414,53 +434,6 @@ const UserTestRecords = () => {
                                   )}
                                 </button>
                                 ) : null}
-                                {activeUserId === user.id && (
-                                  <div className="user-details">
-                                    {sessions.map(session => (
-                                      <span key={session.id}>
-                                        {activeSessionId === null || activeSessionId === session.id ? (
-                                        <button
-                                          className={`btn btn-info mb-3 toggle-session-btn${activeSessionId === session.id ? ' active' : ''}`}
-                                          style={{ height: '120px', width: '200px', padding: '10px', margin: '5px', border: '5px solid black' }}
-                                          onClick={() => toggleSessionDetails(session.id)}
-                                        >
-                                          {session.timestamp ? formatTimestamp(session.timestamp) : `Session ${session.id}`}
-                                          <h4>点数:{session.total_recorded_score}/{session.total_questions}</h4>
-                                        </button>
-                                        ) : null}
-                                        {activeSessionId === session.id && sessionDetails[session.id] && (
-                                          <div className="record-details">
-                                            {sessionDetails[session.id].test_records.map(record => (
-                                              <div key={record.id} style={{ border: '3px solid black', padding: '10px', marginBottom: '10px' }}>
-                                                {record.question_name && (
-                                                  <h4>Question: {record.question_name}</h4>
-                                                )}
-                                                {record.question && (
-                                                  <>
-                                                    {renderAudio(record.question)}
-                                                    {record.question.options.map(option => (
-                                                      option.is_correct && (
-                                                        <p key={option.id}>Correct option: {option.name}</p>
-                                                      )
-                                                    ))}
-                                                  </>
-                                                )}
-                                                {record.selected_option_name && (
-                                                  <p>Selected Option: {record.selected_option_name}</p>
-                                                )}
-                                                {record.total_recorded_score === 0 ? (
-                                                  <p>Recorded Score: {record.recorded_score}</p>
-                                                ) : (
-                                                  <h2>Total Score: {record.total_recorded_score}</h2>
-                                                )}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
                               </span>
                             ))}
                           </div>
@@ -469,19 +442,20 @@ const UserTestRecords = () => {
                     ))}
                   </div>
                 )}
-              </div>
-            ))}
-          </ul>
+                </div>
+                }
+            </span>
+          </span>
       <Modal show={modalIsOpen} onHide={closeReturnModal}>
         <Modal.Body>
-          <p>このアカウントを本当に削除しますか？</p>
+          <p>この生徒を本当に教室から追い出すんですか？</p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={closeReturnModal}>いいえ</Button>
           <Button variant="primary" onClick={handleBackClick}>はい</Button>
         </Modal.Footer>
       </Modal>
-    </div>
+    </span>
   );
 };
 

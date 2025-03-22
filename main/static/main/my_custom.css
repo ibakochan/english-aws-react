@@ -1,0 +1,82 @@
+.flex-center-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-align: center;
+}
+
+.profile_pic {
+    height: 220px;
+    width: 220px;
+    border: 5px solid black;
+}
+
+.profile-text-style {
+    font-size: 30px;
+    margin-top: 5px;
+}
+  
+.category_button {
+    height: 100px;
+    width: 220px;
+    border: 5px solid black !important;
+}
+
+.return_buttons {
+    height: 50px;
+    width: 290px;
+    padding: 10px;
+    border: 5px solid black;
+    position: relative;
+    margin-bottom: 10px;
+}
+
+
+.text_shadow {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    justify-content: center;
+}
+  
+.test_buttons {
+    height: 240px;
+    width: 240px;
+    border: 5px solid black !important;
+}
+
+.submit_buttons {
+    width: 200px;
+    border: 4px solid black;
+}
+
+.text-without-picture {
+  font-size: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.text-with-picture {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 5px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  justify-content: center;
+  font-size: 15px;
+}
+
+
+.play_buttons {
+    height: 50px;
+    width: 250px;
+}
+
+.size-20-20 {
+    width: 20px;
+    height: 20px;
+}

@@ -13,38 +13,17 @@ class MaxScoreSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class OptionSerializer(serializers.ModelSerializer):
-    option_picture = serializers.SerializerMethodField()
 
     class Meta:
         model = Option
         fields = '__all__'
 
-    def get_option_picture(self, obj):
-        if obj.option_picture:
-            option_id = obj.pk
-            return f"https://englishgamesreact.pythonanywhere.com/option/picture/{option_id}/"
-        return None
-
 class QuestionSerializer(serializers.ModelSerializer):
-    question_picture = serializers.SerializerMethodField()
-    question_sound = serializers.SerializerMethodField()
     options = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
         fields = '__all__'
-
-    def get_question_picture(self, obj):
-        if obj.question_picture:
-            question_id = obj.pk
-            return f"https://englishgamesreact.pythonanywhere.com/question/picture/{question_id}/"
-        return None
-
-    def get_question_sound(self, obj):
-        if obj.question_sound:
-            question_id = obj.pk
-            return f"https://englishgamesreact.pythonanywhere.com/question/sound/{question_id}/"
-        return None
 
     def get_options(self, obj):
         options = obj.option_set.filter(is_correct=True)
@@ -52,25 +31,11 @@ class QuestionSerializer(serializers.ModelSerializer):
         return serializer.data
 
 class TestQuestionSerializer(serializers.ModelSerializer):
-    question_picture = serializers.SerializerMethodField()
-    question_sound = serializers.SerializerMethodField()
     options = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
         fields = '__all__'
-
-    def get_question_picture(self, obj):
-        if obj.question_picture:
-            question_id = obj.pk
-            return f"https://englishgamesreact.pythonanywhere.com/question/picture/{question_id}/"
-        return None
-
-    def get_question_sound(self, obj):
-        if obj.question_sound:
-            question_id = obj.pk
-            return f"https://englishgamesreact.pythonanywhere.com/question/sound/{question_id}/"
-        return None
 
     def get_options(self, obj):
         options = obj.option_set.all()
@@ -86,40 +51,58 @@ class TestByClassroomSerializer(serializers.ModelSerializer):
         model = Test
         fields = '__all__'
 
+class NestedCustomUserSerializer(serializers.ModelSerializer):
 
+    class Meta:
+        model = CustomUser
+        fields = ['username', 'first_name', 'id']
 
+class StudentInClassroomsSerializer(serializers.ModelSerializer):
+    user = NestedCustomUserSerializer(read_only=True)
+    
+    class Meta:
+        model = Student
+        fields = ['student_number', 'user']
 
+class TeacherClassroomRequestSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ClassroomRequest
+        fields = '__all__'
+
+class ClassroomSerializer(serializers.ModelSerializer):
+    students = StudentInClassroomsSerializer(many=True, read_only=True)
+    requests = TeacherClassroomRequestSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Classroom
+        fields = ['id', 'name', 'students', 'character_voice', 'requests' ]
+
+class StudentClassroomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Classroom
+        fields = ['id', 'name']
 
 class StudentSerializer(serializers.ModelSerializer):
+    classrooms = StudentClassroomSerializer(many=True, read_only=True)
     class Meta:
         model = Student
         fields = '__all__'
 
-
-
-class ClassroomSerializer(serializers.ModelSerializer):
-
+class TeacherSerializer(serializers.ModelSerializer):
+    classrooms = ClassroomSerializer(many=True, read_only=True)
+    user = NestedCustomUserSerializer(read_only=True)
     class Meta:
-        model = Classroom
+        model = Teacher
         fields = '__all__'
-
-
-
-
-
 
 class CustomUserSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
+    teacher = TeacherSerializer(read_only=True)
+
 
     class Meta:
         model = CustomUser
-        fields = ['username', 'total_eiken_score', 'id', 'total_max_scores', 'total_japanese_score', 'total_english_5_score', 'total_english_6_score', 'total_phonics_score', 'total_numbers_score', 'teacher', 'student']
-
-class TeacherSerializer(serializers.ModelSerializer):
-    user = CustomUserSerializer()
-
-    class Meta:
-        model = Teacher
         fields = '__all__'
 
 class ClassroomRequestSerializer(serializers.ModelSerializer):
@@ -131,5 +114,4 @@ class ClassroomRequestSerializer(serializers.ModelSerializer):
 
 
 class ConnectTestFormSerializer(serializers.Serializer):
-    # Define the fields for your form here
     pass

@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.views import View
 from accounts.models import CustomUser
 from django.http import JsonResponse
+from django.forms.models import model_to_dict
 from accounts.forms import StudentSignUpForm, TeacherSignUpForm
 from .models import Classroom, Test, Question, Option, Teacher, Student, MaxScore, ClassroomRequest
 from django.http import HttpResponse
@@ -44,17 +45,34 @@ class ClassroomRequestViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='by-classroom/(?P<classroom_id>[^/.]+)')
     def get_classroomrequest_by_classroom(self, request, classroom_id=None):
 
-        classroomrequest_ids = ClassroomRequest.objects.filter(classroom_id=classroom_id).values_list('id', flat=True).distinct()
+        
+        classroom = Classroom.objects.get(id=classroom_id)
+        teacher = request.user.teacher
+        
+        if ClassroomRequest.objects.filter(teacher=teacher, classroom=classroom, unchangeable=True).exists():
 
-        classroomrequest = ClassroomRequest.objects.filter(id__in=classroomrequest_ids, unchangeable=False)
+            classroomrequest_ids = ClassroomRequest.objects.filter(classroom_id=classroom_id).values_list('id', flat=True).distinct()
 
-        serializer = ClassroomRequestSerializer(classroomrequest, many=True)
+            classroomrequest = ClassroomRequest.objects.filter(id__in=classroomrequest_ids, unchangeable=False)
 
-        return Response(serializer.data)
+            serializer = ClassroomRequestSerializer(classroomrequest, many=True)
+
+            return Response(serializer.data)
 
 class MaxScoreViewSet(viewsets.ModelViewSet):
     queryset = MaxScore.objects.all()
     serializer_class = MaxScoreSerializer
+
+    @action(detail=False, methods=['get'], url_path='by-user/(?P<user_id>[^/.]+)')
+    def get_maxscore_by_user(self, request, user_id=None):
+
+        maxscore_ids = MaxScore.objects.filter(user_id=user_id).values_list('id', flat=True).distinct()
+
+        maxscore = MaxScore.objects.filter(id__in=maxscore_ids)
+
+        serializer = MaxScoreSerializer(maxscore, many=True)
+
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='by-category-and-user/(?P<category>[^/.]+)/(?P<user_id>[^/.]+)')
     def get_maxscore_by_category_and_user(self, request, category=None, user_id=None):
@@ -105,6 +123,16 @@ class TestQuestionViewSet(viewsets.ModelViewSet):
     queryset = Question.objects.all()
     serializer_class = TestQuestionSerializer
 
+    @action(detail=False, methods=['get'], url_path='by-category/(?P<category>[^/.]+)')
+    def get_questions_by_category(self, request, category=None):
+        tests = Test.objects.filter(category=category)
+        questions = Question.objects.filter(test__in=tests)
+        questions = list(questions)
+        shuffle(questions)
+        serializer = TestQuestionSerializer(questions, many=True)
+
+        return Response(serializer.data)
+
     @action(detail=False, methods=['get'], url_path='by-test/(?P<test_id>[^/.]+)')
     def get_questions_by_test(self, request, test_id=None):
         questions = Question.objects.filter(test__id=test_id)
@@ -142,20 +170,6 @@ class NameIdTestViewSet(viewsets.ModelViewSet):
     queryset = Test.objects.all()
     serializer_class = TestByClassroomSerializer
 
-    def filter_eiken_tests(self, tests, user):
-        eiken_tests = tests.filter(category='eiken').exclude(lesson_number=0)
-        for test in eiken_tests:
-            try:
-
-                prev_test = eiken_tests.get(lesson_number=test.lesson_number - 1)
-                max_score = MaxScore.objects.filter(test=prev_test, user=user).first()
-                if not max_score or (max_score.score / prev_test.total_score) < 0.7:
-                    tests = tests.exclude(id=test.id)
-            except Test.DoesNotExist:
-                continue
-        return tests
-
-
     @action(detail=False, methods=['get'], url_path='by-classroom/(?P<classroom_id>[^/.]+)')
     def by_classroom(self, request, classroom_id=None):
         tests = self.queryset.filter(classroom__id=classroom_id)
@@ -169,7 +183,6 @@ class NameIdTestViewSet(viewsets.ModelViewSet):
 
         if any(category in valid_categories for category in categories):
             tests = self.queryset.filter(category__in=categories)
-            tests = self.filter_eiken_tests(tests, request.user)
             serializer = self.get_serializer(tests, many=True)
             return Response(serializer.data)
         return Response({"error": "Invalid or unspecified categories"}, status=400)
@@ -264,7 +277,7 @@ class CustomUserViewSet(viewsets.ModelViewSet):
         if user.username == 'ivar' or user.username == 'gund':
             total_eiken_scores = 9999
         else:
-            total_eiken_scores = user.total_eiken_score
+            total_eiken_scores = user.total_eiken_score + user.total_numbers_score + user.total_phonics_score
         memories = get_memories(total_max_scores)
         asset = get_profile_assets(total_max_scores)
         pets = get_eiken_pet(total_eiken_scores)
@@ -325,43 +338,46 @@ class TestClassroomView(View):
 
         return JsonResponse(response_data)
 
-class ClassroomJoinView(View):
-
+class ClassroomJoinView(LoginRequiredMixin, View):
     def post(self, request):
-        form = ClassroomJoinForm(request.POST)
-        user = request.user
-        if form.is_valid():
-            classroom_name = form.cleaned_data.get('classroom_name')
+        try:
+            data = json.loads(request.body)
+            classroom_name = data.get("classroom_name")
+            user = request.user
+
+            if not classroom_name:
+                return JsonResponse({"status": "error", "message": "Classroom name is required"}, status=400)
+
             try:
                 classroom = Classroom.objects.get(name=classroom_name)
-                if classroom:
-                    try:
-                        student = user.student
-                        student.classrooms.clear()
-                        classroom.students.add(student)
-                        messages.success(request, 'Successfully joined the classroom as a student!')
-                    except ObjectDoesNotExist:
-                        try:
-                            teacher = user.teacher
-                            if user.is_superuser or ClassroomRequest.objects.filter(classroom=classroom, teacher=teacher, is_accepted=True).exists():
-                                teacher.classrooms.clear()
-                                classroom.teacher.add(teacher)
-                                messages.success(request, 'Successfully joined the classroom as a teacher!')
-                            elif not ClassroomRequest.objects.filter(classroom=classroom, teacher=teacher).exists():
-                                ClassroomRequest.objects.create(classroom=classroom, teacher=teacher)
-                            else:
-                                messages.warning(request, 'まだリクエストがアクセプトされていません。')
-                        except ObjectDoesNotExist:
-                            messages.error(request, 'User is neither a student nor a teacher.')
-                else:
-                    messages.error(request, 'Invalid classroom name.')
+                response_students = []
+                if hasattr(user, "teacher"):
+                    response_students = list(classroom.students.values("user__username", "student_number"))
+                classroom_response = {"id": classroom.id, "name": classroom.name, "character_voice": classroom.character_voice, "students": response_students}
+
+                if hasattr(user, "student"):
+                    student = user.student
+                    student.classrooms.add(classroom)
+                    return JsonResponse({"status": "success", "message": f"生徒として教室{classroom.name}に入りました！", "classroom": classroom_response})
+
+                if hasattr(user, "teacher"):
+                    teacher = user.teacher
+                    if user.is_superuser or ClassroomRequest.objects.filter(classroom=classroom, teacher=teacher, is_accepted=True).exists():
+                        teacher.classrooms.add(classroom)
+                        return JsonResponse({"status": "success", "message": f"先生として教室{classroom.name}に入りました！", "classroom": classroom_response})
+                    elif not ClassroomRequest.objects.filter(classroom=classroom, teacher=teacher).exists():
+                        ClassroomRequest.objects.create(classroom=classroom, teacher=teacher)
+                        return JsonResponse({"status": "pending", "message": "教室に入りたいリクエストを送りました。アクセプトされるしだい自動的に教室に入る"})
+                    else:
+                        return JsonResponse({"status": "error", "message": "まだリクエストがアクセプトされていません。"})
+
+                return JsonResponse({"status": "error", "message": "あなたは学生でも先生でもないようです"}, status=400)
+
             except Classroom.DoesNotExist:
-                messages.error(request, 'Classroom not found.')
-        else:
-            messages.error(request, 'Form is not valid.')
+                return JsonResponse({"status": "error", "message": "教室名が間違っている"}, status=404)
 
-        return redirect('main:profile')
-
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON data"}, status=400)
 
 class ClassroomAcceptView(LoginRequiredMixin, View):
     def post(self, request, pk):
@@ -369,16 +385,24 @@ class ClassroomAcceptView(LoginRequiredMixin, View):
         try:
             classroom_request = ClassroomRequest.objects.get(pk=pk)
             teacher = classroom_request.teacher
-            classroom = Classroom.objects.filter(teacher=teacher).first()
-
-            if classroom_request.is_accepted:
+            classroom = classroom_request.classroom
+            data = json.loads(request.body)
+            unchangeable = data.get("unchangeable", False)
+            
+            if unchangeable == True:
+                classroom_request.is_accepted = True
+                classroom_request.unchangeable = True
+                teacher.classrooms.add(classroom)
+                response_data['status'] = f'{teacher.user.username}先生は教室へ対して完全なる権限を持つようになった'
+            elif classroom_request.is_accepted:
                 classroom_request.is_accepted = False
                 if classroom_request.classroom == classroom:
-                    teacher.classrooms.clear()
-                response_data['status'] = 'Teacher removed from classroom'
+                    teacher.classrooms.remove(classroom)
+                response_data['status'] = f'{teacher.user.username}先生はこの教室から除かれた'
             else:
                 classroom_request.is_accepted = True
-                response_data['status'] = 'Classroom request accepted'
+                teacher.classrooms.add(classroom)
+                response_data['status'] = f'{teacher.user.username}先生はこの教室に入りました'
 
             classroom_request.save()
             response_data['success'] = True
@@ -397,38 +421,19 @@ class ClassroomAcceptView(LoginRequiredMixin, View):
 
 
 
-
 class ProfilePageView(View):
 
 
     template_name = 'main/test.html'
 
     def get(self, request):
-
-        user=request.user
-        join_form = None
-        if Student.objects.filter(user=user).exists() or Teacher.objects.filter(user=user).exists():
-            join_form = ClassroomJoinForm()
-
-        connect_form = ConnectTestForm()
-        total_max_scores = request.user.total_max_scores
-        profile_assets = get_profile_assets(total_max_scores)
+        user = ""
+        if request.user.is_authenticated:
+            user=request.user
 
 
-        return render(request, self.template_name, {
-                'user': user,
-                'join_form': join_form,
-                'users': CustomUser.objects.all(),
-                'test_form': TestCreateForm(),
-                'question_form': QuestionCreateForm(),
-                'option_form': OptionCreateForm(),
-                'classroom_form': ClassroomCreateForm(),
-                'connect_form': connect_form,
-                'total_max_scores': total_max_scores,
-                'profile_image': profile_assets['image'],
-                'profile_text': profile_assets['text'],
-                'profile_audio': profile_assets['audio'],
-            })
+
+        return render(request, self.template_name, {'user': user})
 
 
 
@@ -500,10 +505,12 @@ class TeacherSignUpView(View):
 
 
         if form.is_valid():
+            user = form.save(commit=False)
+            password = form.cleaned_data.get('password')
+            user.set_password(password)
+            user.save()
 
-            user = form.save()
             teacher =Teacher.objects.create(user=user)
-            classroom.teacher.add(teacher)
 
             login(request, user)
             return redirect('/')
@@ -514,14 +521,49 @@ class TeacherSignUpView(View):
 
         return render(request, self.template_name, {'form': form})
 
+class UpdateProfileView(View):
+    def post(self, request):
+        user = request.user
+        try:
+            data = json.loads(request.body)
+            student_number = data.get("studentNumber")
+            last_name = data.get("lastName")
+        
+            student = Student.objects.get(user=user)
+            if student_number != "":
+                student.student_number = student_number
+                student.save()
 
+            if last_name != "":
+                user.last_name = last_name
+                user.save()
+            
+            message_response = f"出席番号と名前を {student_number} と {last_name} に変更できた"
+            if student_number == "" and last_name != "":
+                message_response = f"名字を {last_name} に変更できた"
+            if student_number != "" and last_name == "":
+                message_response = f"出席番号を {student_number} に変更できた"
+            return JsonResponse({'status': 'success', 'message': message_response, 'student_number': student_number, 'last_name': last_name})
+        except ObjectDoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'User not found'}, status=404)        
 
-class AccountDeleteView(LoginRequiredMixin, View):
+class AccountRemoveView(LoginRequiredMixin, View):
     def post(self, request, pk):
         try:
+            data = json.loads(request.body)
+            classroom_id = data.get("classroomId")
+            classroom = Classroom.objects.get(id=classroom_id)
             user = CustomUser.objects.get(pk=pk)
-            user.delete()
-            return JsonResponse({'status': 'success', 'message': 'Account deleted'})
+
+            student = Student.objects.filter(user=user).first()
+            if student:  
+                student.classrooms.remove(classroom)
+
+            teacher = Teacher.objects.filter(user=user).first()
+            if teacher:  
+                teacher.classrooms.remove(classroom)
+                
+            return JsonResponse({'status': 'success', 'message': 'Account removed'})
         except ObjectDoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'User not found'}, status=404)
 
@@ -530,36 +572,34 @@ class AccountDeleteView(LoginRequiredMixin, View):
 
 class ClassroomCreateView(LoginRequiredMixin, View):
     def post(self, request):
-        form = ClassroomCreateForm(request.POST, request.FILES or None)
-        name = request.POST.get('name')
-        if Classroom.objects.filter(name=name).exists():
-            return redirect('main:profile')
-        if form.is_valid():
+        data = json.loads(request.body)
+        classroom_name = data.get("classroom_name")
+        if Classroom.objects.filter(name=classroom_name).exists():
+            return JsonResponse({'status': 'error', 'message': 'Classroom not found'})
+        else:    
             teacher = Teacher.objects.get(user=request.user)
-            teacher.classrooms.clear()
-            classroom = form.save(commit=False)
-            classroom.save()
+            classroom = Classroom.objects.create(name=classroom_name)
             classroom.teacher.add(teacher)
+            classroom_response = {"id": classroom.id, "name": classroom.name, "character_voice": classroom.character_voice, "students": []}
             ClassroomRequest.objects.create(teacher=teacher, classroom=classroom, is_accepted=True, unchangeable=True)
-            return redirect('main:profile')
+            return JsonResponse({'status': 'success', 'message': 'Classroom created', 'classroom': classroom_response })
 
 
 class TestCreateView(LoginRequiredMixin, View):
-    def post(self, request, pk):
+    def post(self, request):
         try:
             data = request.POST.dict()
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'})
 
         form = TestCreateForm(data, request.FILES or None)
-        classroom = get_object_or_404(Classroom, pk=pk)
         if form.is_valid():
             test = form.save(commit=False)
+            test.creator = request.user
             test.save()
-            test.classroom.add(classroom)
-            response_data = {'status': 'success', 'message': 'Test created successfully!', 'classroom_pk': classroom.pk, 'id': test.pk, 'name': test.name}
+            response_data = {'status': 'success', 'message': 'Test created successfully!', 'id': test.pk, 'name': test.name, 'category': test.category}
         else:
-            response_data = {'status': 'error', 'message': 'Form is not valid.', 'errors': form.errors, 'classroom_pk': classroom.pk}
+            response_data = {'status': 'error', 'message': 'Form is not valid.', 'errors': form.errors}
 
         return JsonResponse(response_data)
 
@@ -656,63 +696,59 @@ class OptionDeleteView(LoginRequiredMixin, View):
         return JsonResponse(response_data)
 
 
+class FinalScoreView(View):
+    def post(self, request, category):
+        json_data = json.loads(request.body)
+        score_data = json_data.get('scores', {})
+        tests = Test.objects.filter(category=category)
+        user = request.user
+        
+        total_category_score = 0
 
+        for test in tests:
+            test_score = score_data.get(str(test.id), 0) * test.score_multiplier * 2
+            total_score = test.total_score
+            
+            try:
+                maxscore = MaxScore.objects.get(user=user, test=test)
+                if maxscore.score < test_score:
+                    maxscore.score = test_score
+                    maxscore.total_questions = total_score
+                    maxscore.save()
+            except ObjectDoesNotExist:
+                maxscore = MaxScore.objects.create(user=user, test=test, score=test_score, total_questions=total_score)
+            
+            total_category_score += maxscore.score
+        
+        if category == 'japanese':
+            user.total_japanese_score = total_category_score
+        elif category == 'english_5':
+            user.total_english_5_score = total_category_score
+        elif category == 'english_6':
+            user.total_english_6_score = total_category_score
+        elif category == 'phonics':
+            user.total_phonics_score = total_category_score
+        elif category == 'numbers':
+            user.total_numbers_score = total_category_score
+        elif category == 'eiken':
+            user.total_eiken_score = total_category_score
+        
+        user.save()
+        total_max_scores = MaxScore.objects.filter(user=user).aggregate(total_score=Sum('score'))['total_score'] or 0
 
+        user.total_max_scores = total_max_scores - user.total_eiken_score
+        user.save()
 
+        user_data = {
+            'total_english_5_score': user.total_english_5_score,
+            'total_english_6_score': user.total_english_6_score,
+            'total_phonics_score': user.total_phonics_score,
+            'total_numbers_score': user.total_numbers_score,
+            'total_eiken_score': user.total_eiken_score,
+            'total_max_scores': user.total_max_scores,
+        }
 
-def classroom_stream_file(request, pk):
-
-    classroom = get_object_or_404(Classroom, id=pk)
-    response = HttpResponse()
-    response['Content-Type'] = classroom.classroom_content_type
-    response['Content-Length'] = len(classroom.classroom_picture)
-    response.write(classroom.classroom_picture)
-    return response
-
-
-def test_stream_file(request, pk):
-
-    test = get_object_or_404(Test, id=pk)
-    response = HttpResponse()
-    response['Content-Type'] = test.test_content_type
-    response['Content-Length'] = len(test.test_picture)
-    response.write(test.test_picture)
-    return response
-
-
-def question_stream_file(request, pk):
-
-    question = get_object_or_404(Question, id=pk)
-    response = HttpResponse()
-    response['Content-Type'] = question.question_content_type
-    response['Content-Length'] = len(question.question_picture)
-    response.write(question.question_picture)
-    return response
-
-def question_sound_file(request, pk):
-
-    question = get_object_or_404(Question, id=pk)
-    response = HttpResponse()
-    response['Content-Type'] = question.question_sound_content_type
-    response['Content-Length'] = len(question.question_sound)
-    response.write(question.question_sound)
-    return response
-
-
-def option_stream_file(request, pk):
-
-    option = get_object_or_404(Option, id=pk)
-    response = HttpResponse()
-    response['Content-Type'] = option.option_content_type
-    response['Content-Length'] = len(option.option_picture)
-    response.write(option.option_picture)
-    return response
-
-
-
-
-
-
+        return JsonResponse({'success': True, 'message': 'Scores recorded successfully!', 'user_data': user_data})
 
 
 class ScoreRecordView(View):
@@ -722,16 +758,20 @@ class ScoreRecordView(View):
         test = get_object_or_404(Test, pk=pk)
         user = request.user
         score = score_data * test.score_multiplier
+        if user.username == 'gund':
+            score = score * 18
 
         total_score = test.total_score
         try:
             maxscore = MaxScore.objects.get(user=user, test=test)
             if maxscore.score < score:
-                maxscore.delete()
-                MaxScore.objects.create(user=user, test=test, score=score, total_questions=total_score)
+                maxscore.score = score
+                maxscore.total_questions = total_score
+                maxscore.save()
         except ObjectDoesNotExist:
-            MaxScore.objects.create(user=user, test=test, score=score, total_questions=total_score)
+            maxscore = MaxScore.objects.create(user=user, test=test, score=score, total_questions=total_score)
 
+        maxscore_data = model_to_dict(maxscore)
         total_max_scores = MaxScore.objects.filter(user=user).aggregate(total_score=Sum('score'))['total_score'] or 0
 
         tests = Test.objects.filter(category=test.category)
@@ -752,12 +792,18 @@ class ScoreRecordView(View):
 
         user.save()
         user.total_max_scores = total_max_scores - user.total_eiken_score
-        if user.username == 'ivar':
-            user.total_max_scores = 9999
         user.save()
 
+        user_data = {
+            'total_english_5_score': user.total_english_5_score,
+            'total_english_6_score': user.total_english_6_score,
+            'total_phonics_score': user.total_phonics_score,
+            'total_numbers_score': user.total_numbers_score,
+            'total_eiken_score': user.total_eiken_score,
+            'total_max_scores': user.total_max_scores,
+        }
 
-        response_data = {'success': True, 'message': f'点数: {score}/{total_score}!'}
+        response_data = {'success': True, 'message': f'点数: {score}/{total_score}!', 'maxscore': maxscore_data, 'user_data': user_data, }
 
         return JsonResponse(response_data)
 

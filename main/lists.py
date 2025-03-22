@@ -1801,67 +1801,67 @@ grade_6_lesson_8 = {
 }
 
 months = {
-    'a': {
+    '1': {
         'word': 'January',
         'numbers': 1,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_02_12_40_36_1.mp3',
     },
-    'b': {
+    '2': {
         'word': 'February',
         'numbers': 2,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_02_12_40_40_1.mp3',
     },
-    'c': {
+    '3': {
         'word': 'March',
         'numbers': 3,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_02_12_40_43_1.mp3',
     },
-    'd': {
+    '4': {
         'word': 'April',
         'numbers': 4,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_02_12_40_46_1.mp3',
     },
-    'e': {
+    '5': {
         'word': 'May',
         'numbers': 5,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_03_12_49_56_1.mp3',
     },
-    'f': {
+    '6': {
         'word': 'June',
         'numbers': 6,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_03_09_34_57_1.mp3',
     },
-    'g': {
+    '7': {
         'word': 'July',
         'numbers': 7,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_03_09_36_39_1.mp3',
     },
-    'h': {
+    '8': {
         'word': 'August',
         'numbers': 8,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_03_09_36_42_1.mp3',
     },
-    'i': {
+    '9': {
         'word': 'September',
         'numbers': 9,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_03_09_36_45_1.mp3',
     },
-    'j': {
+    '10': {
         'word': 'October',
         'numbers': 10,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_03_09_36_49_1.mp3',
     },
-    'k': {
+    '11': {
         'word': 'November',
         'numbers': 11,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_03_09_36_52_1.mp3',
     },
-    'l': {
+    '12': {
         'word': 'December',
         'numbers': 12,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_03_09_36_56_1.mp3',
     },
-    'm': {
+    '13': {
         'word': 'Ivarember',
         'numbers': 13,
         'sound': 'https://storage.googleapis.com/month_dates_days/2024_12_10_11_44_08_1.mp3',

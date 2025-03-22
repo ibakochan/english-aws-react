@@ -6,7 +6,6 @@ import { Form, Button, Alert } from 'react-bootstrap';
 const TestCreate = () => {
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
-  const [classrooms, setClassrooms] = useState([]);
   const [tests, setTests] = useState([]);
   const [testQuestions, setTestQuestions] = useState({});
   const [options, setOptions] = useState({});
@@ -35,36 +34,20 @@ const TestCreate = () => {
   }, [options]);
 
 
+
   useEffect(() => {
-    axios.get('/api/classrooms/my-classroom-teacher/')
-      .then(response => {
-        setClassrooms(response.data);
-        const initialFormData = {};
-        response.data.forEach(classroom => {
-          initialFormData[classroom.id] = {
-            name: '',
-          };
-          // Fetch tests for each classroom
-          fetchTestsByClassroom(classroom.id);
-        });
-        setFormData(initialFormData);
-      })
-      .catch(error => {
-        console.error('Error fetching classrooms:', error);
-      });
+    const fetchTests = async () => {
+      try {
+        const response = await axios.get('/api/name-id-tests/');
+        setTests(response.data);
+      } catch (error) {
+        console.error('Error fetching tests:', error);
+      }
+    };
+  
+    fetchTests();
   }, []);
 
-
-  const fetchTestsByClassroom = () => {
-    axios
-      .get('/api/name-id-tests/')
-      .then((response) => {
-        setTests(response.data);
-      })
-      .catch((error) => {
-        console.error('Error fetching tests:', error);
-      });
-  };
 
   const fetchQuestionsByTest = (testId) => {
     axios.get(`/api/test-questions/by-test/${testId}/`)
@@ -94,27 +77,6 @@ const TestCreate = () => {
 
 
 
-  const handleConnectInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleConnectSubmit = async (e) => {
-    e.preventDefault();
-    const { classroom_name, classroom_password } = formData;
-    const response = await fetch(`/test-classroom/${activeTestId}/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': cookies.csrftoken, // Add the CSRF token to headers
-      },
-      body: JSON.stringify({ classroom_name, classroom_password }),
-    });
-    const data = await response.json();
-    setResponseMessage(data.message);
-  };
-
-
   const handleTestCreateInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -124,10 +86,11 @@ const TestCreate = () => {
 
 
 
-  const handleTestCreateSubmit = async (classroomId, e) => {
+  const handleTestCreateSubmit = async (e) => {
       e.preventDefault();
       const data = new FormData();
       data.append('name', formData.name);
+      data.append('description', formData.description);
       data.append('category', formData.category);
       data.append('lesson_number', formData.lesson_number);
       data.append('picture_url', formData.picture_url);
@@ -135,8 +98,9 @@ const TestCreate = () => {
       data.append('score_multiplier', formData.score_multiplier);
       data.append('number_of_questions', formData.number_of_questions);
 
+
       try {
-          const response = await fetch(`/test/${classroomId}/create/`, {
+          const response = await fetch(`/test/create/`, {
               method: 'POST',
               headers: {
                   'X-CSRFToken': cookies.csrftoken,
@@ -151,7 +115,7 @@ const TestCreate = () => {
           const result = await response.json();
           setResponseMessage(result.message);
           setTests(prevTests => [
-              { id: result.id, name: result.name, classroomId },
+              { id: result.id, name: result.name, category: result.category },
               ...prevTests
           ]);
 
@@ -454,16 +418,20 @@ const TestCreate = () => {
 
   return (
     <div>
-      {classrooms.map(classroom => (
-        <div key={classroom.id}>
-          <h2>Create Test for {classroom.name}</h2>
-          <form onSubmit={(e) => handleTestCreateSubmit(classroom.id, e)}>
+          <form onSubmit={(e) => handleTestCreateSubmit(e)}>
             <input
               type="text"
               name="name"
               value={formData.name}
               onChange={handleTestCreateInputChange}
               placeholder="Test Name"
+              className="form-control"
+            />
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleTestCreateInputChange}
+              placeholder="Description"
               className="form-control"
             />
             <input
@@ -515,7 +483,7 @@ const TestCreate = () => {
                 <option value="numbers">Numbers</option>
                 <option value="eiken">Eiken</option>
             </select>
-            <button type="submit" style={{ width: '200px', border: '4px solid dark' }} className="btn btn-primary">Submit</button>
+            <button type="submit" style={{ border: '5px solid black' }} className="btn btn-primary submit_buttons">Submit</button>
           </form>
           {responseMessage && <p>{responseMessage}</p>}
           <div className="test-buttons-container">
@@ -542,32 +510,6 @@ const TestCreate = () => {
                   >
                     Delete Test
                   </Button>
-                  <button class="btn btn-success" style={{ width: '200px', border: '4px solid dark' }} type="button" data-toggle="collapse" data-target="#connectForm" aria-expanded="false" aria-controls="connectForm">
-                    Toggle Connect Form
-                  </button>
-                  <div class="collapse" id="connectForm">
-                  <div class="card card-body">
-                  <form onSubmit={handleConnectSubmit}>
-                    <input
-                      type="text"
-                      name="classroom_name"
-                      value={formData.classroom_name}
-                      onChange={handleConnectInputChange}
-                      placeholder="Classroom Name"
-                      className="form-control"
-                    />
-                    <input
-                      type="password"
-                      name="classroom_password"
-                      value={formData.classroom_password}
-                      onChange={handleConnectInputChange}
-                      placeholder="Classroom Password"
-                      className="form-control"
-                    />
-                    <button type="submit" style={{ width: '200px', border: '4px solid dark' }} className="btn btn-primary">Submit</button>
-                  </form>
-                  </div>
-                  </div>
                   <form onSubmit={(e) => handleQuestionSubmit(test.id, e)}>
                     <input
                       type="text"
@@ -579,43 +521,59 @@ const TestCreate = () => {
                     />
                     <select name="list_selection" value={formData.list_selection} onChange={handleTestCreateInputChange} className="form-control">
                         <option value="">Select List</option>
-                        <option value="small_alphabet_sounds">Small Alphabet Sounds</option>
-                        <option value="alphabet_phonics">alphabet_phonics</option>
-                        <option value="jlpt_n5_vocabulary">Jlpt_n5_vocabulary</option>
-                        <option value="phonics1">Phonics1</option>
-                        <option value="phonics3">Phonics3</option>
-                        <option value="phonics_2">Phonics_2</option>
-                        <option value="lesson4_list">Lesson4_list</option>
-                        <option value="lesson4_grade6_dict">Lesson4_grade6_dict</option>
-                        <option value="grade6_lesson1">Grade6_lesson1</option>
-                        <option value="grade6_lesson2">Grade6_lesson2</option>
-                        <option value="grade6_lesson3">Grade6_lesson3</option>
-                        <option value="grade_6_lesson_5">Grade_6_lesson_5</option>
-                        <option value="grade5_lesson1_names">Grade5_lesson1_names</option>
+                        {test.category === 'english_5' &&
+                        <>
                         <option value="grade5_lesson1_words">Grade5_lesson1_words</option>
+                        <option value="grade5_lesson1_names">Grade5_lesson1_names</option>
                         <option value="grade5_lesson1_sentence">Grade5_lesson1_sentence</option>
                         <option value="grade5_lesson2">Grade5_lesson2</option>
                         <option value="grade5_lesson3">Grade5_lesson3</option>
+                        <option value="lesson4_list">Grade5_lesson4</option>
+                        <option value="grade_5_lesson_5">Grade5_lesson5</option>
+                        <option value="grade_5_lesson_6">Grade5_lesson6</option>
                         <option value="grade5_lesson7">Grade5_lesson7</option>
                         <option value="grade5_lesson8">Grade5_lesson8</option>
-                        <option value="grade_5_lesson_5">Grade_5_lesson_5</option>
-                        <option value="grade_6_lesson_6">Grade_6_lesson_6</option>
-                        <option value="grade_5_lesson_6">Grade_5_lesson_6</option>
-                        <option value="grade_6_lesson_7">Grade_6_lesson_7</option>
-                        <option value="grade_6_lesson_8">Grade_6_lesson_8</option>
+                        </>
+                        }
+                        {test.category === 'english_6' &&
+                        <>
+                        <option value="grade6_lesson1">Grade6_lesson1</option>
+                        <option value="grade6_lesson2">Grade6_lesson2</option>
+                        <option value="grade6_lesson3">Grade6_lesson3</option>
+                        <option value="lesson4_grade6_dict">Grade6_lesson4</option>
+                        <option value="grade_6_lesson_5">Grade6_lesson5</option>
+                        <option value="grade_6_lesson_6">Grade6_lesson6</option>
+                        <option value="grade_6_lesson_7">Grade6_lesson7</option>
+                        <option value="grade_6_lesson_8">Grade6_lesson8</option>
+                        </>
+                        }
+                        {test.category === 'phonics' &&
+                        <>
+                        <option value="alphabet_sounds">Big Alphabet</option>
+                        <option value="small_alphabet_sounds">Small Alphabet</option>
+                        <option value="alphabet_phonics">alphabet Phonics</option>
+                        <option value="alphabet_sounds2">Alphabet Phonics2</option>
+                        <option value="alphabet_sounds3">Alphabet Phonics3</option>
+                        <option value="phonics1">Phonics1</option>
+                        <option value="phonics_2">Phonics2</option>
+                        <option value="phonics3">Phonics3</option>
+                        </>
+                        }
+                        {test.category === 'numbers' &&
+                        <>
+                        <option value="days">Days</option>
                         <option value="months">Months</option>
                         <option value="dates">Dates</option>
-                        <option value="days">Days</option>
                         <option value="one_twenty">One Twenty</option>
                         <option value="one_hundred">One Hundred</option>
                         <option value="eleven_ninety">Eleven Ninety</option>
                         <option value="one_thousand">One Thousand</option>
                         <option value="one_quadrillion">One Quadrillion</option>
                         <option value="thousand_quadrillion">Thousand Quadrillion</option>
-                        <option value="japanese_numbers">Japanese Numbers</option>
-                        <option value="alphabet_sounds2">Alphabet Sounds2</option>
-                        <option value="alphabet_sounds3">Alphabet Sounds3</option>
-                        <option value="alphabet_sounds3">Alphabet Sounds3</option>
+                        </>
+                        }
+                        {test.category === 'eiken' &&
+                        <>
                         <option value="eiken5_vocab1">Eiken5 Vocab1</option>
                         <option value="eiken5_vocab2">Eiken5 Vocab2</option>
                         <option value="eiken5_vocab3">Eiken5 Vocab3</option>
@@ -624,12 +582,21 @@ const TestCreate = () => {
                         <option value="eiken5_vocab6">Eiken5 Vocab6</option>
                         <option value="eiken5_vocab7">Eiken5 Vocab7</option>
                         <option value="eiken5_vocab8">Eiken5 Vocab8</option>
+                        <option value="eiken5_vocab9">Eiken5 Vocab9</option>
+                        <option value="eiken5_vocab10">Eiken5 Vocab10</option>
+                        <option value="eiken5_vocab11">Eiken5 Vocab11</option>
+                        <option value="eiken5_vocab12">Eiken5 Vocab12</option>
+                        <option value="eiken5_vocab13">Eiken5 Vocab13</option>
+                        <option value="eiken5_vocab14">Eiken5 Vocab14</option>
+                        <option value="eiken5_vocab15">Eiken5 Vocab15</option>
+                        <option value="eiken5_vocab16">Eiken5 Vocab16</option>
                         <option value="eiken5_vocab">Eiken5 Vocab</option>
                         <option value="eiken5_vocab_practice">Eiken5 Vocab Practice</option>
                         <option value="eiken5_grammar_practice">Eiken5 Grammar Practice</option>
                         <option value="eiken5_grammar_conversation">Eiken5 Grammar Conversation</option>
                         <option value="eiken5_conversation_vocab_practice">Eiken5 Conversation Vocab Practice</option>
-
+                        </>
+                        }
                     </select>
                     <input
                       type="file"
@@ -793,7 +760,7 @@ const TestCreate = () => {
                       />
                       <label className="form-check-label">Word2</label>
                     </div>
-                    <button type="submit" style={{ width: '200px', border: '4px solid dark' }} className="btn btn-primary">Submit</button>
+                    <button type="submit" style={{ border: '5px solid black' }} className="btn btn-primary submit_buttons">Submit</button>
                   </form>
                   {responseMessage && <p>{responseMessage}</p>}
                     {testQuestions[test.id].map(question => (
@@ -858,7 +825,7 @@ const TestCreate = () => {
                             />
                             <label className="form-check-label">Is Correct</label>
                             </div>
-                            <button type="submit" style={{ width: '200px', border: '4px solid dark' }} className="btn btn-primary">Submit</button>
+                            <button type="submit" style={{ border: '5px solid black' }} className="btn btn-primary submit_buttons">Submit</button>
                           </form>
                           </div>
                             {options[question.id].map(option => (
@@ -898,8 +865,6 @@ const TestCreate = () => {
               </span>
             ))}
           </div>
-        </div>
-      ))}
     </div>
   );
 };

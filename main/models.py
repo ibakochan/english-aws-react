@@ -19,10 +19,10 @@ class Student(models.Model):
         return self.user.username
 
 class Classroom(models.Model):
-    name = models.CharField(max_length=200, unique=True)
     teacher = models.ManyToManyField(Teacher, blank=True, related_name='classrooms')
     students = models.ManyToManyField(Student, blank=True, related_name='classrooms')
     character_voice = models.BooleanField(default=False)
+    name = models.CharField(max_length=200, unique=True)
 
     def set_password(self, raw_password):
         self.hashed_password = make_password(raw_password)
@@ -34,8 +34,8 @@ class Classroom(models.Model):
         return self.name
 
 class ClassroomRequest(models.Model):
-    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, null=True)
-    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, null=True)
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, null=True, )
+    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, null=True, related_name='requests')
     is_accepted = models.BooleanField(default=False)
     unchangeable = models.BooleanField(default=False)
 
@@ -50,6 +50,7 @@ class Test(models.Model):
         ('eiken', 'Eiken'),
     ]
     name = models.CharField(max_length=200)
+    creator = models.ForeignKey(CustomUser, on_delete=models.CASCADE, default=12)
     picture_url = models.URLField(max_length=500, null=True, blank=True)
     sound_url = models.URLField(max_length=500, null=True, blank=True)
     total_questions = models.PositiveIntegerField(default=0)

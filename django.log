@@ -688,3 +688,11 @@ Traceback (most recent call last):
   File "/home/bitnami/dp/mysite/venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py", line 2125, in get_prep_value
     raise e.__class__(
 TypeError: Field 'id' expected a number but got <SimpleLazyObject: <django.contrib.auth.models.AnonymousUser object at 0x7fce73627ad0>>.
+Not Found: /api/classrooms/my-classroom-teacher/
+Not Found: /api/classrooms/my-classroom/
+Not Found: /api/classrooms/my-classroom-teacher/
+Not Found: /api/classrooms/my-classroom/
+Not Found: /api/classrooms/my-classroom-teacher/
+Not Found: /api/classrooms/my-classroom/
+Not Found: /api/classrooms/my-classroom-teacher/
+Not Found: /api/classrooms/my-classroom/

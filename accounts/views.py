@@ -4,38 +4,35 @@ from django.views import View
 from django.shortcuts import get_object_or_404, render, redirect
 from .models import CustomUser
 from main.models import Student
-from django.contrib.auth import login
+from django.contrib.auth import authenticate, login
 from .forms import CustomAuthenticationForm
 from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
+from django.contrib.auth.forms import AuthenticationForm
+
 
 class CustomLoginView(View):
-    form_class = CustomAuthenticationForm
-    template_name = 'login.html'
+    template_name = 'accounts/login.html'
 
-    @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        form = self.form_class()
+        form = AuthenticationForm(request)
         return render(request, self.template_name, {'form': form})
 
     def post(self, request, *args, **kwargs):
-        form = self.form_class(request, data=request.POST)
+        form = AuthenticationForm(request, data=request.POST)
 
         if form.is_valid():
             username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
 
-            try:
-                user = CustomUser.objects.get(username=username)
-            except CustomUser.DoesNotExist:
-                form.add_error(None, "ユーザーネーム間違ってる")
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None:
+                login(request, user)
+                return redirect('main:profile')
+            else:
+                form.add_error(None, "ユーザーネームまたはパスワードが間違っています。")
                 return render(request, self.template_name, {'form': form})
-
-            if user.is_superuser:
-                form.add_error(None, "Superusers are not allowed to log in here.")
-                return render(request, self.template_name, {'form': form})
-
-            login(request, user)
-            return redirect('main:profile')
 
         return render(request, self.template_name, {'form': form})
 

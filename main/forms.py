@@ -6,7 +6,7 @@ from main.humanize import naturalsize
 from django.forms import DateInput
 from django.core.exceptions import ValidationError
 from django.forms import CharField
-from .lists_eiken import eiken5_vocab1, eiken5_vocab2, eiken5_vocab3, eiken5_vocab4, eiken5_vocab5, eiken5_vocab6, eiken5_vocab7, eiken5_vocab8, eiken5_grammar_conversation, eiken5_vocab, eiken5_vocab_practice, eiken5_grammar_practice, eiken5_conversation_vocab_practice
+from .lists_eiken import eiken5_vocab1, eiken5_vocab2, eiken5_vocab3, eiken5_vocab4, eiken5_vocab5, eiken5_vocab6, eiken5_vocab7, eiken5_vocab8, eiken5_vocab9, eiken5_vocab10, eiken5_vocab11, eiken5_vocab12, eiken5_vocab13, eiken5_vocab14, eiken5_vocab15, eiken5_vocab16, eiken5_grammar_conversation, eiken5_vocab, eiken5_vocab_practice, eiken5_grammar_practice, eiken5_conversation_vocab_practice
 from .lists import alphabet_sounds3, grade5_lesson8, grade5_lesson7, grade5_lesson1_names, grade5_lesson1_words, grade5_lesson1_sentence, grade5_lesson2, grade5_lesson3, dates, months, days, grade6_lesson1, grade6_lesson2, grade6_lesson3, grade_6_lesson_8, grade_6_lesson_7, phonics3, alphabet_sounds2, japanese_numbers, grade_6_lesson_6, alphabet_sounds, one_twenty, one_hundred, eleven_ninety, one_thousand, one_quadrillion, thousand_quadrillion, grade_6_lesson_5, grade_5_lesson_5, grade_5_lesson_6, small_alphabet_sounds, alphabet_phonics, jlpt_n5_vocabulary, phonics1, phonics_2, lesson4_list, lesson4_grade6_dict
 
 class ClassroomJoinForm(forms.Form):
@@ -66,7 +66,7 @@ class TestCreateForm(forms.ModelForm):
 
     class Meta:
         model = Test
-        fields = ['name', 'category', 'picture_url', 'sound_url', 'lesson_number', 'score_multiplier', 'number_of_questions']
+        fields = ['name', 'description', 'category', 'picture_url', 'sound_url', 'lesson_number', 'score_multiplier', 'number_of_questions']
 
     widgets = {
         'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -74,7 +74,6 @@ class TestCreateForm(forms.ModelForm):
 
 
 class QuestionCreateForm(forms.ModelForm):
-
 
     list_choices = [
         ('alphabet_sounds', 'Alphabet Sounds'),
@@ -122,6 +121,14 @@ class QuestionCreateForm(forms.ModelForm):
         ('eiken5_vocab6', 'Eiken5_vocab6'),
         ('eiken5_vocab7', 'Eiken5_vocab7'),
         ('eiken5_vocab8', 'Eiken5_vocab8'),
+        ('eiken5_vocab9', 'Eiken5_vocab9'),
+        ('eiken5_vocab10', 'Eiken5_vocab10'),
+        ('eiken5_vocab11', 'Eiken5_vocab11'),
+        ('eiken5_vocab12', 'Eiken5_vocab12'),
+        ('eiken5_vocab13', 'Eiken5_vocab13'),
+        ('eiken5_vocab14', 'Eiken5_vocab14'),
+        ('eiken5_vocab15', 'Eiken5_vocab15'),
+        ('eiken5_vocab16', 'Eiken5_vocab16'),
         ('eiken5_vocab', 'Eiken5_vocab'),
         ('eiken5_vocab_practice', 'eiken5_vocab_practice'),
         ('eiken5_grammar_practice', 'eiken5_grammar_practice'),
@@ -141,9 +148,9 @@ class QuestionCreateForm(forms.ModelForm):
     }
 
 
-
-
     def save(self, commit=True):
+        instance = super(QuestionCreateForm, self).save(commit=False)
+
         selected_list = self.cleaned_data.get('list_selection')
         if selected_list:
             if selected_list == 'alphabet_sounds':
@@ -236,6 +243,22 @@ class QuestionCreateForm(forms.ModelForm):
                 instance.question_list = eiken5_vocab7
             elif selected_list == 'eiken5_vocab8':
                 instance.question_list = eiken5_vocab8
+            elif selected_list == 'eiken5_vocab9':
+                instance.question_list = eiken5_vocab9
+            elif selected_list == 'eiken5_vocab10':
+                instance.question_list = eiken5_vocab10
+            elif selected_list == 'eiken5_vocab11':
+                instance.question_list = eiken5_vocab11
+            elif selected_list == 'eiken5_vocab12':
+                instance.question_list = eiken5_vocab12
+            elif selected_list == 'eiken5_vocab13':
+                instance.question_list = eiken5_vocab13
+            elif selected_list == 'eiken5_vocab14':
+                instance.question_list = eiken5_vocab14
+            elif selected_list == 'eiken5_vocab15':
+                instance.question_list = eiken5_vocab15
+            elif selected_list == 'eiken5_vocab16':
+                instance.question_list = eiken5_vocab16
             elif selected_list == 'eiken5_vocab':
                 instance.question_list = eiken5_vocab
             elif selected_list == 'eiken5_vocab_practice':

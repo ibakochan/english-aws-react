@@ -2,10 +2,6 @@ from .models import Test, Question, MaxScore
 from django.db.models import Sum
 
 def get_profile_assets(total_max_scores):
-    level = total_max_scores // 20
-
-
-
 
     assets = {
         0: {"english_audio": "https://storage.googleapis.com/profile_assets/2024_10_28_13_01_19_1.mp3", "image": "https://storage.googleapis.com/profile_assets/a-crying.jpeg", "text": "泣くことしかできない生まれたての赤ちゃんです", "english_text" : "are a baby that can do nothing but cry", "audio": "https://storage.googleapis.com/profile_assets/2024_10_28_13_01_19_1.mp3"},
@@ -37,14 +33,9 @@ def get_profile_assets(total_max_scores):
         26: {"english_audio": "https://storage.googleapis.com/ivar_reactions/2024_12_07_19_36_49_1.mp3", "image": "https://storage.googleapis.com/profile_assets/n-ivar.jpg", "text": "このサイトの理解を超えてる存在", "english_text" : "are a being that is beyond the comprehension of this site", "audio": "https://storage.googleapis.com/ivar_reactions/sound13%20(1).mp3"},
     }
 
-
-    if total_max_scores >= 540:
-        return assets[26]
-    else:
-        return assets.get(level, assets[max(assets)])
+    return assets
 
 def get_eiken_pet(total_eiken_scores):
-    levels = int(total_eiken_scores // 50)
 
     pets = {
         0: {"image": 'https://storage.googleapis.com/profile_pets/one_cell.png', "text": 'まだ細胞一つしかない生物', "audio": 'https://storage.googleapis.com/profile_pets/2024_12_23_12_14_25_1.mp3', "english_text": 'still only a one celled organism'},
@@ -61,7 +52,7 @@ def get_eiken_pet(total_eiken_scores):
     }
 
 
-    return pets.get(levels, pets[max(pets)])
+    return pets
 
 def get_eiken_memories(total_eiken_scores):
     levels = int(total_eiken_scores // 50)
@@ -84,7 +75,7 @@ def get_eiken_memories(total_eiken_scores):
     return result
 
 def get_memories(total_max_scores):
-    levels = int(total_max_scores // 20)
+    levels = int(total_max_scores // 50)
 
     memories = {
         1: {"english_audio": "https://storage.googleapis.com/profile_assets/2024_10_28_13_01_19_1.mp3", "image": "https://storage.googleapis.com/profile_assets/a-baby.png", "text": "泣くことしかできない生まれたての赤ちゃんです", "audio": "https://storage.googleapis.com/profile_assets/2024_10_28_13_01_19_1.mp3"},

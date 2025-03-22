@@ -70,6 +70,8 @@ INSTALLED_APPS = [
     'accounts.apps.AccountsConfig',
     'main.apps.MainConfig',
     'crispy_bootstrap5',
+    'django_redis',
+    'channels',
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -109,25 +111,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'mysite.wsgi.application'
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'file': {
-            'level': 'DEBUG',  # Log all messages (DEBUG and above)
-            'class': 'logging.FileHandler',
-            'filename': 'django.log',  # Log file name
-        },
-    },
-    'loggers': {
-        '': {  # Root logger
-            'handlers': ['file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-    },
-}
 
 
 # Database
@@ -187,6 +170,24 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://:ogijrogirjocjkpeokrgpoijoijoicer546jovgjroi6jy5@172.26.5.146:6379/1',  
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 5, 
+            'SOCKET_TIMEOUT': 5,         
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 100, 
+            },
+        }
+    }
+}
+
+# Optional: This is to ensure Django sessions are stored in Redis
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
 # Security settings
 SESSION_COOKIE_AGE = 120960000
 SECURE_SSL_REDIRECT = True
